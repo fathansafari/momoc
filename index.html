@@ -5,494 +5,565 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>For Momoca ❤️</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- LOAD THREE.JS ENGINE -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Dancing+Script:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Dancing+Script:wght@700&display=swap');
 
         body, html {
             background-color: #000;
             color: white;
-            margin: 0;
-            padding: 0;
+            margin: 0; padding: 0;
             overflow: hidden;
-            font-family: 'Inter', sans-serif;
-            height: 100%;
-            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            height: 100%; width: 100%;
+            touch-action: none; /* Mencegah scroll/zoom */
         }
 
-        /* OVERLAY AWAL */
-        #overlay-start {
+        /* LAYERS Z-INDEX */
+        #layer-overlay { z-index: 100; }
+        #layer-ui { z-index: 50; }
+        #layer-final-text { z-index: 60; }
+        #canvas-stickman { z-index: 20; } /* 2D Stickman */
+        #canvas-3d { z-index: 10; } /* 3D Flower Background */
+
+        /* 1. START OVERLAY */
+        #layer-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: black; z-index: 9999;
+            background: #000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            cursor: pointer; touch-action: manipulation;
-            transition: opacity 0.8s ease;
+            transition: opacity 1s ease; cursor: pointer;
         }
+        .heart-beat { font-size: 4rem; animation: beat 1.5s infinite; margin-bottom: 20px; }
+        .tap-text { font-size: 0.8rem; letter-spacing: 4px; color: #888; text-transform: uppercase; }
 
-        /* TEXT INTRO */
+        /* 2. INTRO & CHAT UI */
         #layer-ui {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 50; pointer-events: none;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            pointer-events: none; /* Klik tembus ke canvas kecuali elemen aktif */
+            display: flex; justify-content: center; align-items: center;
         }
-        
-        .intro-text {
-            text-align: center; font-size: 1.2rem; line-height: 1.6; opacity: 0;
-            transform: translateY(20px); transition: all 1.5s ease;
-            position: absolute; width: 85%;
-        }
-        .intro-visible { opacity: 1; transform: translateY(0); }
 
-        /* IG CHAT STYLE */
-        #ig-chat {
-            width: 100%; height: 100%; background: black;
+        .intro-container {
+            position: absolute; text-align: center; width: 80%;
+            display: flex; flex-direction: column; gap: 15px;
+        }
+        .intro-line {
+            font-size: 1.1rem; opacity: 0; transform: translateY(20px);
+            transition: all 1s ease;
+        }
+        .intro-active { opacity: 1; transform: translateY(0); }
+
+        /* IG CHAT BOX */
+        #ig-interface {
+            width: 100%; height: 100%; max-width: 420px; background: #000;
             display: none; flex-direction: column; pointer-events: auto;
-            max-width: 450px; margin: 0 auto;
             border-left: 1px solid #1a1a1a; border-right: 1px solid #1a1a1a;
         }
         .ig-header {
-            padding: 15px; border-bottom: 1px solid #262626; display: flex; align-items: center;
+            padding: 15px 20px; border-bottom: 1px solid #262626; display: flex; align-items: center;
         }
-        .ig-profile {
-            width: 32px; height: 32px; border-radius: 50%; margin-right: 12px;
+        .avatar {
+            width: 38px; height: 38px; border-radius: 50%; margin-right: 12px;
             background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
             padding: 2px;
         }
-        .ig-profile div { width: 100%; height: 100%; background: black; border-radius: 50%; }
+        .avatar-inner { width: 100%; height: 100%; background: #222; border-radius: 50%; }
         
-        .chat-area { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+        .chat-body { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
         
-        .bubble {
-            max-width: 75%; padding: 12px 16px; border-radius: 22px; font-size: 1rem;
-            opacity: 0; transform: translateY(10px); transition: all 0.5s ease;
-            position: relative;
+        .msg {
+            max-width: 75%; padding: 12px 16px; border-radius: 22px; font-size: 0.95rem;
+            position: relative; opacity: 0; transform: translateY(10px); transition: all 0.4s ease;
+            line-height: 1.4;
         }
-        .bubble.visible { opacity: 1; transform: translateY(0); }
-        .b-left { align-self: flex-start; background: #262626; border-bottom-left-radius: 4px; }
-        .b-right { align-self: flex-end; background: #3797f0; border-bottom-right-radius: 4px; }
+        .msg.show { opacity: 1; transform: translateY(0); }
+        .msg-l { align-self: flex-start; background: #262626; border-bottom-left-radius: 4px; }
+        .msg-r { align-self: flex-end; background: #3797f0; border-bottom-right-radius: 4px; }
 
-        .action-container {
-            opacity: 0; transition: opacity 1s; display: none; 
-            flex-direction: column; align-items: center; padding: 30px; gap: 15px;
+        /* TYPING INDICATOR */
+        .typing {
+            align-self: flex-start; background: #262626; padding: 15px 20px; border-radius: 22px;
+            border-bottom-left-radius: 4px; display: none; width: fit-content; margin-bottom: 10px;
         }
-        .btn-maaf {
-            background: white; color: black; border: none; padding: 14px 35px;
+        .dot {
+            display: inline-block; width: 7px; height: 7px; background: #bbb; border-radius: 50%;
+            margin-right: 4px; animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+
+        /* ACTION BUTTON */
+        .action-box {
+            padding: 40px 20px; display: none; flex-direction: column; align-items: center; gap: 15px;
+            opacity: 0; transition: opacity 1s;
+        }
+        .btn-main {
+            background: white; color: black; border: none; padding: 14px 40px;
             border-radius: 50px; font-weight: 600; font-size: 1rem; cursor: pointer;
-            box-shadow: 0 0 15px rgba(255,255,255,0.2); transition: transform 0.2s;
+            box-shadow: 0 5px 20px rgba(255,255,255,0.15); transition: transform 0.1s;
         }
-        .btn-maaf:active { transform: scale(0.95); }
+        .btn-main:active { transform: scale(0.95); }
 
-        /* CANVAS LAYERS */
-        canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
-        #canvas-stickman { z-index: 10; pointer-events: none; }
-        #canvas-3d { z-index: 5; opacity: 0; transition: opacity 2s ease; }
+        /* 3. CANVASES */
+        canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #canvas-3d { opacity: 0; transition: opacity 2s ease; } /* Starts hidden */
 
-        #final-text {
-            position: absolute; bottom: 15%; width: 100%; text-align: center;
-            font-family: 'Dancing Script', cursive; font-size: 2.5rem; color: #ffb7b2;
-            text-shadow: 0 0 10px rgba(255,100,100,0.5); opacity: 0; transition: opacity 2s; z-index: 60;
+        /* FINAL TEXT */
+        #layer-final-text {
+            position: absolute; bottom: 15%; width: 100%; text-align: center; pointer-events: none;
+            font-family: 'Dancing Script', cursive; font-size: 2.5rem; color: #ffcce0;
+            text-shadow: 0 0 20px rgba(255, 20, 147, 0.6); opacity: 0; transition: opacity 2s;
         }
 
-        .pulse { animation: pulseAnim 2s infinite; }
-        @keyframes pulseAnim { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        @keyframes beat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
     </style>
 </head>
 <body>
 
-    <!-- Start Overlay -->
-    <div id="overlay-start">
-        <div style="font-size: 4rem; margin-bottom: 20px;">💌</div>
-        <div class="pulse" style="font-size: 0.9rem; letter-spacing: 3px; color: #aaa;">KETUK UNTUK MEMBUKA</div>
-        <div id="loading-text" style="font-size: 0.7rem; color: #555; margin-top: 10px;">Loading assets...</div>
+    <!-- OVERLAY -->
+    <div id="layer-overlay">
+        <div class="heart-beat">🥀</div>
+        <div class="tap-text">Ketuk Layar</div>
+        <div style="margin-top:10px; font-size: 0.7rem; color: #444;">Loading 3D Engine...</div>
     </div>
 
-    <!-- UI Layer -->
+    <!-- UI -->
     <div id="layer-ui">
-        <!-- Intro -->
-        <div id="intro-box" class="intro-text">
-            <p id="t1">Kita jadian 7 Mei 2022...</p>
-            <p id="t2" style="margin-top:20px;">Sampai sekarang kita bertahan,<br>walau banyak badai yang datang.</p>
+        <div id="intro-box" class="intro-container">
+            <div class="intro-line">Kita jadian 7 Mei 2022...</div>
+            <div class="intro-line">Sampai sekarang kita bertahan,</div>
+            <div class="intro-line">Walau banyak masalah yang datang.</div>
         </div>
 
-        <!-- Chat -->
-        <div id="ig-chat">
+        <div id="ig-interface">
             <div class="ig-header">
-                <div class="ig-profile"><div></div></div>
+                <div class="avatar"><div class="avatar-inner"></div></div>
                 <div>
                     <div style="font-weight:600; font-size:0.95rem;">momoca</div>
-                    <div style="font-size:0.75rem; color:#aaa;">Active now</div>
+                    <div style="font-size:0.75rem; color:#888;">Active now</div>
                 </div>
             </div>
-            <div class="chat-area" id="chat-box"></div>
-            <div class="action-container" id="action-ui">
-                <p style="color:#ccc; font-size:0.9rem;">Kamu mau maafin aku gak?</p>
-                <button class="btn-maaf" id="btn-final">Maafin aja deh, betmut</button>
+            <div class="chat-body" id="chat-scroller">
+                <div class="typing" id="typing-dots">
+                    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                </div>
+            </div>
+            <div class="action-box" id="action-panel">
+                <p style="color:#aaa; font-size:0.9rem;">Kamu mau maafin aku gak?</p>
+                <button class="btn-main" id="btn-forgive">Maafin aja deh, betmut</button>
             </div>
         </div>
     </div>
 
-    <div id="final-text">I Love You, Momoca</div>
+    <!-- FINAL -->
+    <div id="layer-final-text">I Love You, Momoca</div>
 
-    <!-- Canvas -->
+    <!-- CANVASES -->
     <canvas id="canvas-stickman"></canvas>
-    <canvas id="canvas-3d"></canvas>
+    <canvas id="canvas-3d"></canvas> <!-- THREE.JS RENDER TARGET -->
 
-    <!-- Music (Hidden) -->
-    <div style="display:none;">
-        <iframe id="spotify-frame" src="https://open.spotify.com/embed/track/3Qiv7UhkqYeBExD6gZ1m3k?utm_source=generator&theme=0" width="100%" height="80" allow="autoplay"></iframe>
+    <!-- AUDIO -->
+    <div style="position:fixed; opacity:0; pointer-events:none;">
+        <iframe id="spotify" src="https://open.spotify.com/embed/track/3Qiv7UhkqYeBExD6gZ1m3k?utm_source=generator&theme=0" width="100" height="100" allow="autoplay"></iframe>
     </div>
 
     <script>
-        // --- SYSTEM SETUP ---
-        // Kita gunakan event listener 'load' untuk memastikan semua siap sebelum kode jalan
+        // PASTIKAN SEMUA LOAD DULU
         window.addEventListener('load', () => {
-            
-            // Hapus text loading
-            document.getElementById('loading-text').style.display = 'none';
 
-            // --- VARIABLES ---
-            const overlay = document.getElementById('overlay-start');
+            // --- CONFIG ---
+            const overlay = document.getElementById('layer-overlay');
             const introBox = document.getElementById('intro-box');
-            const igChat = document.getElementById('ig-chat');
-            const chatBox = document.getElementById('chat-box');
-            const actionUi = document.getElementById('action-ui');
-            const btnFinal = document.getElementById('btn-final');
-            const finalText = document.getElementById('final-text');
+            const igUI = document.getElementById('ig-interface');
+            const chatBody = document.getElementById('chat-scroller');
+            const typing = document.getElementById('typing-dots');
+            const actionPanel = document.getElementById('action-panel');
+            const canvas2D = document.getElementById('canvas-stickman');
+            const canvas3D = document.getElementById('canvas-3d');
+            const finalText = document.getElementById('layer-final-text');
             
-            const canvas2d = document.getElementById('canvas-stickman');
-            const ctx = canvas2d.getContext('2d');
-            const canvas3d = document.getElementById('canvas-3d');
-
-            let w = window.innerWidth;
-            let h = window.innerHeight;
             let isStarted = false;
 
-            // --- RESIZE HANDLER ---
-            function handleResize() {
-                w = window.innerWidth;
-                h = window.innerHeight;
-                canvas2d.width = w;
-                canvas2d.height = h;
-                
-                if (camera && renderer) {
-                    camera.aspect = w / h;
-                    camera.updateProjectionMatrix();
-                    renderer.setSize(w, h);
-                }
-            }
-            window.addEventListener('resize', handleResize);
-            handleResize();
-
-            // --- CLICK HANDLER (START) ---
-            function startStory() {
-                if (isStarted) return;
+            // --- START HANDLER ---
+            const startAll = () => {
+                if(isStarted) return;
                 isStarted = true;
 
-                // Play Music Hack (Reload Iframe trigger)
-                const iframe = document.getElementById('spotify-frame');
-                iframe.src = iframe.src; 
+                // Audio Trigger
+                document.getElementById('spotify').src += ""; 
 
                 // Hide Overlay
-                overlay.style.opacity = '0';
-                setTimeout(() => { overlay.style.display = 'none'; }, 800);
+                overlay.style.opacity = 0;
+                setTimeout(() => overlay.style.display = 'none', 1000);
 
-                // Start Intro
-                setTimeout(() => document.getElementById('t1').classList.add('intro-visible'), 500);
-                setTimeout(() => document.getElementById('t2').classList.add('intro-visible'), 2500);
+                // Play Intro
+                const lines = document.querySelectorAll('.intro-line');
+                setTimeout(() => lines[0].classList.add('intro-active'), 500);
+                setTimeout(() => lines[1].classList.add('intro-active'), 2500);
+                setTimeout(() => lines[2].classList.add('intro-active'), 4500);
 
-                // Transition to Chat
+                // Switch to Chat
                 setTimeout(() => {
-                    introBox.classList.remove('intro-visible');
-                    introBox.style.opacity = '0';
+                    introBox.style.opacity = 0;
                     setTimeout(() => {
                         introBox.style.display = 'none';
-                        igChat.style.display = 'flex';
-                        startChat();
+                        igUI.style.display = 'flex';
+                        playChat();
                     }, 1000);
-                }, 6000);
-            }
+                }, 7500);
+            };
 
-            // Tambahkan Event Listener ke Overlay (Klik & Touch)
-            overlay.addEventListener('click', startStory);
-            overlay.addEventListener('touchstart', startStory);
+            overlay.addEventListener('click', startAll);
+            overlay.addEventListener('touchstart', startAll);
 
-            // --- CHAT LOGIC ---
-            function startChat() {
-                const messages = [
-                    { txt: "haloo", side: "left", time: 500 },
-                    { txt: "haloo juga", side: "right", time: 1500 },
-                    { txt: "ini momoca ya?", side: "left", time: 2500 }
-                ];
+            // --- CHAT SYSTEM ---
+            const addMsg = (txt, side) => {
+                const d = document.createElement('div');
+                d.className = `msg msg-${side}`;
+                d.innerText = txt;
+                chatBody.insertBefore(d, typing);
+                requestAnimationFrame(() => d.classList.add('show'));
+                chatBody.scrollTop = chatBody.scrollHeight;
+            };
 
-                let delay = 0;
-                messages.forEach(msg => {
-                    delay += msg.time;
-                    setTimeout(() => {
-                        const div = document.createElement('div');
-                        div.className = `bubble b-${msg.side}`;
-                        div.innerText = msg.txt;
-                        chatBox.appendChild(div);
-                        
-                        // Animasi bubble muncul
-                        requestAnimationFrame(() => {
-                            div.classList.add('visible');
-                            chatBox.scrollTop = chatBox.scrollHeight;
-                        });
-                    }, delay);
-                });
-
-                // Tampilkan Tombol Action
-                setTimeout(() => {
-                    actionUi.style.display = 'flex';
-                    // Trigger reflow agar transisi opacity jalan
-                    void actionUi.offsetWidth; 
-                    actionUi.style.opacity = '1';
-                    chatBox.scrollTop = chatBox.scrollHeight;
-                }, delay + 1500);
-            }
-
-            // --- BUTTON HANDLER ---
-            btnFinal.addEventListener('click', () => {
-                // Fade out Chat UI
-                igChat.style.transition = "all 1s ease";
-                igChat.style.opacity = '0';
-                igChat.style.transform = "scale(0.95)";
+            const playChat = async () => {
+                const sleep = ms => new Promise(r => setTimeout(r, ms));
                 
+                // Typing 1
+                typing.style.display = 'block';
+                await sleep(1000);
+                typing.style.display = 'none';
+                addMsg("haloo", 'l');
+                
+                // Reply
+                await sleep(1000);
+                addMsg("haloo juga", 'r');
+                
+                // Typing 2
+                await sleep(500);
+                typing.style.display = 'block';
+                chatBody.scrollTop = chatBody.scrollHeight;
+                await sleep(1500);
+                typing.style.display = 'none';
+                addMsg("ini momoca ya?", 'l');
+
+                // Action
+                await sleep(1000);
+                actionPanel.style.display = 'flex';
+                // reflow
+                void actionPanel.offsetWidth;
+                actionPanel.style.opacity = 1;
+                chatBody.scrollTop = chatBody.scrollHeight;
+            };
+
+            document.getElementById('btn-forgive').onclick = () => {
+                // Exit Chat
+                igUI.style.transition = "transform 1s, opacity 1s";
+                igUI.style.transform = "scale(0.9)";
+                igUI.style.opacity = 0;
                 setTimeout(() => {
-                    igChat.style.display = 'none';
-                    initStickman(); // Mulai Animasi Stickman
+                    igUI.style.display = 'none';
+                    initStickmanAnim();
                 }, 1000);
-            });
+            };
 
-            // --- STICKMAN ANIMATION (CANVAS 2D) ---
-            let smFrame = 0;
-            let smPhase = 'WALK'; // WALK -> GIVE
+            // ===============================================
+            // 2D STICKMAN ANIMATION (Smooth Canvas API)
+            // ===============================================
+            const ctx = canvas2D.getContext('2d');
+            let w, h;
+            
+            const resize = () => {
+                w = window.innerWidth;
+                h = window.innerHeight;
+                canvas2D.width = w; canvas2D.height = h;
+                // 3D Resize handled later
+            };
+            window.addEventListener('resize', resize);
+            resize();
+
+            let smState = 'WALK'; 
             let boyX = -50;
-            let boyY = h / 2 + 100;
-            let girlX = w + 50;
+            let boyY = 0; // set in loop
+            let girlX = 0; 
+            let frame = 0;
 
-            function initStickman() {
-                // Posisi berdasarkan ukuran layar saat ini
-                boyY = h / 2 + 100; 
-                girlX = w / 2 + 60;
-                boyX = -50;
-                
-                loopStickman();
-            }
-
-            function drawStickFigure(ctx, x, y, isGirl, isMoving, f) {
-                ctx.strokeStyle = 'white';
-                ctx.lineWidth = 3;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                
+            const drawMan = (x, y, isGirl, isWalk) => {
                 ctx.save();
                 ctx.translate(x, y);
                 ctx.scale(1.2, 1.2);
+                ctx.strokeStyle = 'white'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
-                // Kepala
-                ctx.beginPath(); ctx.arc(0, -50, 10, 0, Math.PI*2); ctx.stroke();
+                // Physics
+                let bounce = isWalk ? Math.abs(Math.sin(frame*0.15))*5 : 0;
                 
-                // Badan
-                ctx.beginPath(); ctx.moveTo(0, -40); ctx.lineTo(0, 0); ctx.stroke();
+                // Head
+                ctx.beginPath(); ctx.arc(0, -50-bounce, 10, 0, Math.PI*2); ctx.stroke();
+                // Body
+                ctx.beginPath(); ctx.moveTo(0, -40-bounce); ctx.lineTo(0, 0-bounce); ctx.stroke();
+                
+                // Legs (Smooth Sin Wave)
+                ctx.beginPath(); ctx.moveTo(0,0-bounce);
+                let la = isWalk ? Math.sin(frame*0.15)*0.8 : 0;
+                ctx.lineTo(Math.sin(la)*-20, Math.cos(la)*30 - bounce); ctx.stroke(); // L
 
-                // Kaki
-                const stride = isMoving ? Math.sin(f * 0.2) * 15 : 0;
-                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-stride, 30); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(stride, 30); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0,0-bounce);
+                let ra = isWalk ? Math.sin(frame*0.15 + Math.PI)*0.8 : 0;
+                ctx.lineTo(Math.sin(ra)*-20, Math.cos(ra)*30 - bounce); ctx.stroke(); // R
 
-                // Tangan
-                ctx.beginPath(); ctx.moveTo(0, -35);
-                if (isMoving) {
-                    ctx.lineTo(-stride, -10);
-                } else if (!isGirl && smPhase === 'GIVE') {
-                    ctx.lineTo(25, -35); // Tangan memberi
+                // Arms
+                ctx.beginPath(); ctx.moveTo(0, -35-bounce);
+                if(isWalk) {
+                     ctx.lineTo(Math.sin(frame*0.15 + Math.PI)*15, -10-bounce);
+                } else if (!isGirl && smState === 'GIVE') {
+                     ctx.lineTo(25, -35-bounce); // Give
                 } else {
-                    ctx.lineTo(0, -10);
+                     ctx.lineTo(0, -10-bounce);
                 }
                 ctx.stroke();
 
-                // Rok Cewe
-                if (isGirl) {
-                    ctx.fillStyle = 'white';
-                    ctx.beginPath(); ctx.moveTo(0, -25); ctx.lineTo(-12, 10); ctx.lineTo(12, 10); ctx.fill();
+                if(isGirl) {
+                    ctx.fillStyle='white'; ctx.beginPath(); ctx.moveTo(0,-25-bounce); ctx.lineTo(-12,10-bounce); ctx.lineTo(12,10-bounce); ctx.fill();
                 }
-
                 ctx.restore();
-            }
+            };
 
-            function loopStickman() {
-                ctx.clearRect(0, 0, w, h);
-                smFrame++;
+            const initStickmanAnim = () => {
+                boyY = h/2 + 150;
+                girlX = w/2 + 60;
+                animLoop2D();
+            };
 
-                // Garis Tanah
-                ctx.strokeStyle = '#333';
-                ctx.beginPath(); ctx.moveTo(0, boyY); ctx.lineTo(w, boyY); ctx.stroke();
+            const animLoop2D = () => {
+                ctx.clearRect(0,0,w,h);
+                frame++;
 
-                if (smPhase === 'WALK') {
-                    boyX += 3; // Kecepatan jalan
-                    if (boyX >= w / 2 - 60) {
-                        smPhase = 'GIVE';
-                        smFrame = 0;
-                        init3D(); // Siapkan 3D di background
+                // Floor
+                ctx.strokeStyle = '#333'; ctx.beginPath(); ctx.moveTo(0, boyY); ctx.lineTo(w, boyY); ctx.stroke();
+
+                if(smState === 'WALK') {
+                    boyX += 2.5;
+                    if(boyX >= w/2 - 60) {
+                        smState = 'GIVE';
+                        frame = 0;
+                        // PREPARE 3D
+                        initThreeJS();
                     }
                 }
 
-                drawStickFigure(ctx, boyX, boyY, false, smPhase === 'WALK', smFrame);
-                drawStickFigure(ctx, girlX, boyY, true, false, smFrame);
+                drawMan(boyX, boyY, false, smState === 'WALK');
+                drawMan(girlX, boyY, true, false);
 
-                // Transisi ke 3D setelah memberi bunga
-                if (smPhase === 'GIVE') {
-                    if (smFrame > 60) {
-                        // Fade out 2D, Fade in 3D
-                        canvas2d.style.transition = "opacity 2s";
-                        canvas2d.style.opacity = '0';
-                        canvas3d.style.opacity = '1';
-                        finalText.style.opacity = '1';
-                        
-                        // Stop 2D loop eventually to save resources
-                        if (smFrame > 200) return; 
+                if(smState === 'GIVE') {
+                    if(frame > 60) {
+                        // FADE OUT 2D, SHOW 3D
+                        canvas2D.style.transition = 'opacity 1s';
+                        canvas2D.style.opacity = 0;
+                        canvas3D.style.opacity = 1;
+                        finalText.style.opacity = 1;
                     }
                 }
-                
-                requestAnimationFrame(loopStickman);
-            }
 
-            // --- THREE.JS 3D ENGINE ---
-            let scene, camera, renderer, lilyGroup, particles;
-            let bloomVal = 0;
+                if(canvas3D.style.opacity != '1') {
+                    requestAnimationFrame(animLoop2D);
+                }
+            };
 
-            function init3D() {
-                if (scene) return; // Prevent double init
+            // ===============================================
+            // 3D ENGINE (THREE.JS) - HIGH QUALITY FLOWER
+            // ===============================================
+            let renderer, scene, camera, lilyGroup, particles;
+            let bloomProgress = 0;
 
+            const initThreeJS = () => {
+                // 1. Setup
                 scene = new THREE.Scene();
-                // Kabut hitam untuk kedalaman
-                scene.fog = new THREE.FogExp2(0x000000, 0.03);
+                // Add soft fog for depth
+                scene.fog = new THREE.FogExp2(0x000000, 0.02);
 
-                camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
-                camera.position.set(0, 3, 12);
-                camera.lookAt(0, 1, 0);
+                camera = new THREE.PerspectiveCamera(45, w/h, 0.1, 1000);
+                camera.position.set(0, 3, 14); // Zoom out a bit
+                camera.lookAt(0, 2, 0);
 
-                renderer = new THREE.WebGLRenderer({ canvas: canvas3d, alpha: true, antialias: true });
+                renderer = new THREE.WebGLRenderer({ canvas: canvas3D, alpha: true, antialias: true });
                 renderer.setSize(w, h);
-                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                renderer.setPixelRatio(window.devicePixelRatio);
+                renderer.toneMapping = THREE.ReinhardToneMapping;
 
-                // Lights
-                scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-                const pLight = new THREE.PointLight(0xff69b4, 1.5, 20);
-                pLight.position.set(2, 5, 2);
-                scene.add(pLight);
+                // 2. Lights (Cinematic)
+                const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+                scene.add(ambient);
 
-                createLily();
-                createParticles();
-                loop3D();
-            }
+                // Main Pink Glow
+                const spot = new THREE.SpotLight(0xff69b4, 2);
+                spot.position.set(5, 10, 5);
+                spot.angle = 0.5;
+                spot.penumbra = 1;
+                scene.add(spot);
 
-            function createLily() {
+                const point = new THREE.PointLight(0xffb7b2, 1, 10);
+                point.position.set(-2, 2, 2);
+                scene.add(point);
+
+                // 3. Procedural Lily Geometry
+                createLilyModel();
+                createMagicDust();
+
+                // 4. Start Loop
+                animLoop3D();
+            };
+
+            const createLilyModel = () => {
                 lilyGroup = new THREE.Group();
 
-                // 1. Batang
-                const stemCurve = new THREE.CatmullRomCurve3([
-                    new THREE.Vector3(0, -5, 0),
-                    new THREE.Vector3(0, -1, 0),
-                    new THREE.Vector3(0.2, 0.5, 0)
+                // A. The Stem (Curved Tube)
+                const path = new THREE.CatmullRomCurve3([
+                    new THREE.Vector3(0, -6, 0),
+                    new THREE.Vector3(0.5, -3, 0),
+                    new THREE.Vector3(0, 0, 0)
                 ]);
-                const stemGeo = new THREE.TubeGeometry(stemCurve, 20, 0.1, 8, false);
-                const stemMat = new THREE.MeshStandardMaterial({ color: 0x4caf50 });
-                lilyGroup.add(new THREE.Mesh(stemGeo, stemMat));
+                const stemGeo = new THREE.TubeGeometry(path, 64, 0.15, 8, false);
+                const stemMat = new THREE.MeshStandardMaterial({ color: 0x4caf50, roughness: 0.8 });
+                const stem = new THREE.Mesh(stemGeo, stemMat);
+                lilyGroup.add(stem);
 
-                // 2. Kelopak
-                const petalShape = new THREE.Shape();
-                petalShape.moveTo(0,0);
-                petalShape.bezierCurveTo(0.5, 1, 1, 2, 0, 3.5);
-                petalShape.bezierCurveTo(-1, 2, -0.5, 1, 0, 0);
+                // B. The Petal (Custom Shape)
+                // Draw half a teardrop shape then extrude
+                const shape = new THREE.Shape();
+                shape.moveTo(0,0);
+                // Control points for a Lily petal shape (Long, tapered)
+                shape.bezierCurveTo(0.4, 0.5, 0.8, 1.5, 0, 4.5); // Right side curve
+                shape.bezierCurveTo(-0.8, 1.5, -0.4, 0.5, 0, 0); // Left side curve
 
-                const extrudeSet = { steps: 1, depth: 0.05, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2 };
-                const petalGeo = new THREE.ExtrudeGeometry(petalShape, extrudeSet);
-                const petalMat = new THREE.MeshStandardMaterial({ 
-                    color: 0xffffff, emissive: 0xffaacc, emissiveIntensity: 0.3,
-                    roughness: 0.2, metalness: 0.1, side: THREE.DoubleSide 
+                const extrudeSettings = {
+                    steps: 2,
+                    depth: 0.05, // Thickness
+                    bevelEnabled: true,
+                    bevelThickness: 0.02,
+                    bevelSize: 0.02,
+                    bevelSegments: 2
+                };
+                const petalGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                // Shift Pivot to bottom
+                petalGeo.translate(0,0,0);
+
+                // Petal Material (Subsurface Scattering fake effect with emissive)
+                const petalMat = new THREE.MeshStandardMaterial({
+                    color: 0xffffff, // White Base
+                    emissive: 0xffaacc, // Pink Glow
+                    emissiveIntensity: 0.3,
+                    roughness: 0.3,
+                    metalness: 0.1,
+                    side: THREE.DoubleSide
                 });
 
+                // Create 6 Petals
                 for(let i=0; i<6; i++) {
-                    const group = new THREE.Group();
-                    const petal = new THREE.Mesh(petalGeo, petalMat);
+                    const pContainer = new THREE.Group();
+                    const petalMesh = new THREE.Mesh(petalGeo, petalMat);
                     
-                    petal.rotation.x = -0.3; // Lengkungan natural
-                    group.add(petal);
+                    // Natural bend of the petal
+                    petalMesh.rotation.x = -0.3; 
+                    
+                    pContainer.add(petalMesh);
 
-                    // Posisi awal tertutup
-                    group.rotation.z = (i * 60) * (Math.PI/180);
-                    group.rotation.x = 1.5; // Kuncup
-
-                    // Data target animasi
-                    group.userData = { targetX: 0.7 };
-                    if(i%2!==0) {
-                        petal.position.y = 0.1;
-                        group.userData.targetX = 1.0; 
+                    // Arrange in circle
+                    pContainer.rotation.z = (i * 60) * Math.PI / 180;
+                    
+                    // Set initial CLOSED state (Folded up)
+                    pContainer.rotation.x = 1.6; // Almost vertical
+                    
+                    // Metadata for animation
+                    pContainer.userData = { 
+                        targetX: 0.8, // Open angle
+                        isInner: i % 2 !== 0
+                    };
+                    
+                    if(pContainer.userData.isInner) {
+                         pContainer.userData.targetX = 1.0; // Inner petals stand up more
+                         petalMesh.position.y = 0.1; // Offset slightly
                     }
-                    
-                    lilyGroup.add(group);
-                }
-                
-                // Putik
-                for(let i=0; i<5; i++) {
-                   const pGeo = new THREE.CylinderGeometry(0.02, 0.02, 1.2, 6);
-                   const pMat = new THREE.MeshBasicMaterial({color:0xffd700});
-                   const p = new THREE.Mesh(pGeo, pMat);
-                   p.position.y = 0.5;
-                   p.rotation.set(Math.random()-0.5, 0, Math.random()-0.5);
-                   lilyGroup.add(p);
+
+                    lilyGroup.add(pContainer);
                 }
 
-                lilyGroup.scale.set(0,0,0);
+                // C. Stamens (Putik)
+                for(let k=0; k<6; k++) {
+                    const sGeo = new THREE.CylinderGeometry(0.02, 0.02, 2.5, 8);
+                    const sMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+                    const stamen = new THREE.Mesh(sGeo, sMat);
+                    stamen.position.y = 1;
+                    // Random slight spread
+                    stamen.rotation.x = (Math.random()-0.5) * 0.5;
+                    stamen.rotation.z = (Math.random()-0.5) * 0.5;
+                    lilyGroup.add(stamen);
+                }
+
+                lilyGroup.scale.set(0,0,0); // Start hidden
                 scene.add(lilyGroup);
-            }
+            };
 
-            function createParticles() {
+            const createMagicDust = () => {
+                const count = 300;
                 const geo = new THREE.BufferGeometry();
                 const pos = [];
-                for(let i=0; i<150; i++) {
-                    pos.push((Math.random()-0.5)*10, (Math.random()-0.5)*10+2, (Math.random()-0.5)*10);
+                for(let i=0; i<count; i++) {
+                    pos.push((Math.random()-0.5)*15); // x
+                    pos.push((Math.random()-0.5)*15 + 3); // y
+                    pos.push((Math.random()-0.5)*15); // z
                 }
                 geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-                const mat = new THREE.PointsMaterial({color: 0xffb7b2, size: 0.15, transparent: true, opacity: 0.6});
+                const mat = new THREE.PointsMaterial({
+                    color: 0xffc0cb,
+                    size: 0.1,
+                    transparent: true,
+                    opacity: 0.8,
+                    blending: THREE.AdditiveBlending
+                });
                 particles = new THREE.Points(geo, mat);
                 scene.add(particles);
-            }
+            };
 
-            function loop3D() {
-                requestAnimationFrame(loop3D);
+            const animLoop3D = () => {
+                requestAnimationFrame(animLoop3D);
                 const t = Date.now() * 0.001;
 
-                // Animasi Mekar
-                if (bloomVal < 1) {
-                    bloomVal += 0.005;
-                    lilyGroup.scale.set(bloomVal, bloomVal, bloomVal);
+                // 1. Growth Animation
+                if(bloomProgress < 1) {
+                    bloomProgress += 0.008;
+                    // Easing scale
+                    let s = bloomProgress;
+                    lilyGroup.scale.set(s,s,s);
                 }
 
-                // Animasi Kelopak Membuka
-                lilyGroup.children.forEach(c => {
-                    if (c.userData.targetX && bloomVal > 0.3) {
-                        c.rotation.x += (c.userData.targetX - c.rotation.x) * 0.02;
+                // 2. Petal Opening Logic
+                lilyGroup.children.forEach(child => {
+                    if(child.userData.targetX && bloomProgress > 0.3) {
+                        // Smoothly interpolate current rotation to target rotation
+                        child.rotation.x = THREE.MathUtils.lerp(child.rotation.x, child.userData.targetX, 0.03);
                     }
                 });
 
-                // Gerakan Floating
-                lilyGroup.position.y = Math.sin(t) * 0.2 + 0.5;
-                lilyGroup.rotation.y = t * 0.15;
+                // 3. Organic Swaying (Wind)
+                lilyGroup.rotation.y = Math.sin(t*0.5) * 0.2 + (t*0.1); // Spin slowly + Sway
+                lilyGroup.rotation.z = Math.cos(t*0.3) * 0.05;
+                lilyGroup.position.y = Math.sin(t) * 0.3; // Floating up/down
 
-                // Partikel
+                // 4. Particle Field Spin
                 particles.rotation.y = -t * 0.05;
-                particles.position.y = Math.sin(t*0.5)*0.2;
-
+                
                 renderer.render(scene, camera);
-            }
-
-        }); // END WINDOW LOAD
+            };
+        });
     </script>
 </body>
 </html>
+
+
+ 
 
 
 
