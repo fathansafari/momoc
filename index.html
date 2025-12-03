@@ -1,1 +1,498 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>For Momoca ❤️</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Dancing+Script:wght@700&display=swap');
+
+        body, html {
+            background-color: #000;
+            color: white;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            height: 100%;
+            width: 100%;
+        }
+
+        /* OVERLAY AWAL */
+        #overlay-start {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            cursor: pointer; touch-action: manipulation;
+            transition: opacity 0.8s ease;
+        }
+
+        /* TEXT INTRO */
+        #layer-ui {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 50; pointer-events: none;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        
+        .intro-text {
+            text-align: center; font-size: 1.2rem; line-height: 1.6; opacity: 0;
+            transform: translateY(20px); transition: all 1.5s ease;
+            position: absolute; width: 85%;
+        }
+        .intro-visible { opacity: 1; transform: translateY(0); }
+
+        /* IG CHAT STYLE */
+        #ig-chat {
+            width: 100%; height: 100%; background: black;
+            display: none; flex-direction: column; pointer-events: auto;
+            max-width: 450px; margin: 0 auto;
+            border-left: 1px solid #1a1a1a; border-right: 1px solid #1a1a1a;
+        }
+        .ig-header {
+            padding: 15px; border-bottom: 1px solid #262626; display: flex; align-items: center;
+        }
+        .ig-profile {
+            width: 32px; height: 32px; border-radius: 50%; margin-right: 12px;
+            background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+            padding: 2px;
+        }
+        .ig-profile div { width: 100%; height: 100%; background: black; border-radius: 50%; }
+        
+        .chat-area { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+        
+        .bubble {
+            max-width: 75%; padding: 12px 16px; border-radius: 22px; font-size: 1rem;
+            opacity: 0; transform: translateY(10px); transition: all 0.5s ease;
+            position: relative;
+        }
+        .bubble.visible { opacity: 1; transform: translateY(0); }
+        .b-left { align-self: flex-start; background: #262626; border-bottom-left-radius: 4px; }
+        .b-right { align-self: flex-end; background: #3797f0; border-bottom-right-radius: 4px; }
+
+        .action-container {
+            opacity: 0; transition: opacity 1s; display: none; 
+            flex-direction: column; align-items: center; padding: 30px; gap: 15px;
+        }
+        .btn-maaf {
+            background: white; color: black; border: none; padding: 14px 35px;
+            border-radius: 50px; font-weight: 600; font-size: 1rem; cursor: pointer;
+            box-shadow: 0 0 15px rgba(255,255,255,0.2); transition: transform 0.2s;
+        }
+        .btn-maaf:active { transform: scale(0.95); }
+
+        /* CANVAS LAYERS */
+        canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+        #canvas-stickman { z-index: 10; pointer-events: none; }
+        #canvas-3d { z-index: 5; opacity: 0; transition: opacity 2s ease; }
+
+        #final-text {
+            position: absolute; bottom: 15%; width: 100%; text-align: center;
+            font-family: 'Dancing Script', cursive; font-size: 2.5rem; color: #ffb7b2;
+            text-shadow: 0 0 10px rgba(255,100,100,0.5); opacity: 0; transition: opacity 2s; z-index: 60;
+        }
+
+        .pulse { animation: pulseAnim 2s infinite; }
+        @keyframes pulseAnim { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <!-- Start Overlay -->
+    <div id="overlay-start">
+        <div style="font-size: 4rem; margin-bottom: 20px;">💌</div>
+        <div class="pulse" style="font-size: 0.9rem; letter-spacing: 3px; color: #aaa;">KETUK UNTUK MEMBUKA</div>
+        <div id="loading-text" style="font-size: 0.7rem; color: #555; margin-top: 10px;">Loading assets...</div>
+    </div>
+
+    <!-- UI Layer -->
+    <div id="layer-ui">
+        <!-- Intro -->
+        <div id="intro-box" class="intro-text">
+            <p id="t1">Kita jadian 7 Mei 2022...</p>
+            <p id="t2" style="margin-top:20px;">Sampai sekarang kita bertahan,<br>walau banyak badai yang datang.</p>
+        </div>
+
+        <!-- Chat -->
+        <div id="ig-chat">
+            <div class="ig-header">
+                <div class="ig-profile"><div></div></div>
+                <div>
+                    <div style="font-weight:600; font-size:0.95rem;">momoca</div>
+                    <div style="font-size:0.75rem; color:#aaa;">Active now</div>
+                </div>
+            </div>
+            <div class="chat-area" id="chat-box"></div>
+            <div class="action-container" id="action-ui">
+                <p style="color:#ccc; font-size:0.9rem;">Kamu mau maafin aku gak?</p>
+                <button class="btn-maaf" id="btn-final">Maafin aja deh, betmut</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="final-text">I Love You, Momoca</div>
+
+    <!-- Canvas -->
+    <canvas id="canvas-stickman"></canvas>
+    <canvas id="canvas-3d"></canvas>
+
+    <!-- Music (Hidden) -->
+    <div style="display:none;">
+        <iframe id="spotify-frame" src="https://open.spotify.com/embed/track/3Qiv7UhkqYeBExD6gZ1m3k?utm_source=generator&theme=0" width="100%" height="80" allow="autoplay"></iframe>
+    </div>
+
+    <script>
+        // --- SYSTEM SETUP ---
+        // Kita gunakan event listener 'load' untuk memastikan semua siap sebelum kode jalan
+        window.addEventListener('load', () => {
+            
+            // Hapus text loading
+            document.getElementById('loading-text').style.display = 'none';
+
+            // --- VARIABLES ---
+            const overlay = document.getElementById('overlay-start');
+            const introBox = document.getElementById('intro-box');
+            const igChat = document.getElementById('ig-chat');
+            const chatBox = document.getElementById('chat-box');
+            const actionUi = document.getElementById('action-ui');
+            const btnFinal = document.getElementById('btn-final');
+            const finalText = document.getElementById('final-text');
+            
+            const canvas2d = document.getElementById('canvas-stickman');
+            const ctx = canvas2d.getContext('2d');
+            const canvas3d = document.getElementById('canvas-3d');
+
+            let w = window.innerWidth;
+            let h = window.innerHeight;
+            let isStarted = false;
+
+            // --- RESIZE HANDLER ---
+            function handleResize() {
+                w = window.innerWidth;
+                h = window.innerHeight;
+                canvas2d.width = w;
+                canvas2d.height = h;
+                
+                if (camera && renderer) {
+                    camera.aspect = w / h;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(w, h);
+                }
+            }
+            window.addEventListener('resize', handleResize);
+            handleResize();
+
+            // --- CLICK HANDLER (START) ---
+            function startStory() {
+                if (isStarted) return;
+                isStarted = true;
+
+                // Play Music Hack (Reload Iframe trigger)
+                const iframe = document.getElementById('spotify-frame');
+                iframe.src = iframe.src; 
+
+                // Hide Overlay
+                overlay.style.opacity = '0';
+                setTimeout(() => { overlay.style.display = 'none'; }, 800);
+
+                // Start Intro
+                setTimeout(() => document.getElementById('t1').classList.add('intro-visible'), 500);
+                setTimeout(() => document.getElementById('t2').classList.add('intro-visible'), 2500);
+
+                // Transition to Chat
+                setTimeout(() => {
+                    introBox.classList.remove('intro-visible');
+                    introBox.style.opacity = '0';
+                    setTimeout(() => {
+                        introBox.style.display = 'none';
+                        igChat.style.display = 'flex';
+                        startChat();
+                    }, 1000);
+                }, 6000);
+            }
+
+            // Tambahkan Event Listener ke Overlay (Klik & Touch)
+            overlay.addEventListener('click', startStory);
+            overlay.addEventListener('touchstart', startStory);
+
+            // --- CHAT LOGIC ---
+            function startChat() {
+                const messages = [
+                    { txt: "haloo", side: "left", time: 500 },
+                    { txt: "haloo juga", side: "right", time: 1500 },
+                    { txt: "ini momoca ya?", side: "left", time: 2500 }
+                ];
+
+                let delay = 0;
+                messages.forEach(msg => {
+                    delay += msg.time;
+                    setTimeout(() => {
+                        const div = document.createElement('div');
+                        div.className = `bubble b-${msg.side}`;
+                        div.innerText = msg.txt;
+                        chatBox.appendChild(div);
+                        
+                        // Animasi bubble muncul
+                        requestAnimationFrame(() => {
+                            div.classList.add('visible');
+                            chatBox.scrollTop = chatBox.scrollHeight;
+                        });
+                    }, delay);
+                });
+
+                // Tampilkan Tombol Action
+                setTimeout(() => {
+                    actionUi.style.display = 'flex';
+                    // Trigger reflow agar transisi opacity jalan
+                    void actionUi.offsetWidth; 
+                    actionUi.style.opacity = '1';
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }, delay + 1500);
+            }
+
+            // --- BUTTON HANDLER ---
+            btnFinal.addEventListener('click', () => {
+                // Fade out Chat UI
+                igChat.style.transition = "all 1s ease";
+                igChat.style.opacity = '0';
+                igChat.style.transform = "scale(0.95)";
+                
+                setTimeout(() => {
+                    igChat.style.display = 'none';
+                    initStickman(); // Mulai Animasi Stickman
+                }, 1000);
+            });
+
+            // --- STICKMAN ANIMATION (CANVAS 2D) ---
+            let smFrame = 0;
+            let smPhase = 'WALK'; // WALK -> GIVE
+            let boyX = -50;
+            let boyY = h / 2 + 100;
+            let girlX = w + 50;
+
+            function initStickman() {
+                // Posisi berdasarkan ukuran layar saat ini
+                boyY = h / 2 + 100; 
+                girlX = w / 2 + 60;
+                boyX = -50;
+                
+                loopStickman();
+            }
+
+            function drawStickFigure(ctx, x, y, isGirl, isMoving, f) {
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.scale(1.2, 1.2);
+
+                // Kepala
+                ctx.beginPath(); ctx.arc(0, -50, 10, 0, Math.PI*2); ctx.stroke();
+                
+                // Badan
+                ctx.beginPath(); ctx.moveTo(0, -40); ctx.lineTo(0, 0); ctx.stroke();
+
+                // Kaki
+                const stride = isMoving ? Math.sin(f * 0.2) * 15 : 0;
+                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-stride, 30); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(stride, 30); ctx.stroke();
+
+                // Tangan
+                ctx.beginPath(); ctx.moveTo(0, -35);
+                if (isMoving) {
+                    ctx.lineTo(-stride, -10);
+                } else if (!isGirl && smPhase === 'GIVE') {
+                    ctx.lineTo(25, -35); // Tangan memberi
+                } else {
+                    ctx.lineTo(0, -10);
+                }
+                ctx.stroke();
+
+                // Rok Cewe
+                if (isGirl) {
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath(); ctx.moveTo(0, -25); ctx.lineTo(-12, 10); ctx.lineTo(12, 10); ctx.fill();
+                }
+
+                ctx.restore();
+            }
+
+            function loopStickman() {
+                ctx.clearRect(0, 0, w, h);
+                smFrame++;
+
+                // Garis Tanah
+                ctx.strokeStyle = '#333';
+                ctx.beginPath(); ctx.moveTo(0, boyY); ctx.lineTo(w, boyY); ctx.stroke();
+
+                if (smPhase === 'WALK') {
+                    boyX += 3; // Kecepatan jalan
+                    if (boyX >= w / 2 - 60) {
+                        smPhase = 'GIVE';
+                        smFrame = 0;
+                        init3D(); // Siapkan 3D di background
+                    }
+                }
+
+                drawStickFigure(ctx, boyX, boyY, false, smPhase === 'WALK', smFrame);
+                drawStickFigure(ctx, girlX, boyY, true, false, smFrame);
+
+                // Transisi ke 3D setelah memberi bunga
+                if (smPhase === 'GIVE') {
+                    if (smFrame > 60) {
+                        // Fade out 2D, Fade in 3D
+                        canvas2d.style.transition = "opacity 2s";
+                        canvas2d.style.opacity = '0';
+                        canvas3d.style.opacity = '1';
+                        finalText.style.opacity = '1';
+                        
+                        // Stop 2D loop eventually to save resources
+                        if (smFrame > 200) return; 
+                    }
+                }
+                
+                requestAnimationFrame(loopStickman);
+            }
+
+            // --- THREE.JS 3D ENGINE ---
+            let scene, camera, renderer, lilyGroup, particles;
+            let bloomVal = 0;
+
+            function init3D() {
+                if (scene) return; // Prevent double init
+
+                scene = new THREE.Scene();
+                // Kabut hitam untuk kedalaman
+                scene.fog = new THREE.FogExp2(0x000000, 0.03);
+
+                camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
+                camera.position.set(0, 3, 12);
+                camera.lookAt(0, 1, 0);
+
+                renderer = new THREE.WebGLRenderer({ canvas: canvas3d, alpha: true, antialias: true });
+                renderer.setSize(w, h);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+                // Lights
+                scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+                const pLight = new THREE.PointLight(0xff69b4, 1.5, 20);
+                pLight.position.set(2, 5, 2);
+                scene.add(pLight);
+
+                createLily();
+                createParticles();
+                loop3D();
+            }
+
+            function createLily() {
+                lilyGroup = new THREE.Group();
+
+                // 1. Batang
+                const stemCurve = new THREE.CatmullRomCurve3([
+                    new THREE.Vector3(0, -5, 0),
+                    new THREE.Vector3(0, -1, 0),
+                    new THREE.Vector3(0.2, 0.5, 0)
+                ]);
+                const stemGeo = new THREE.TubeGeometry(stemCurve, 20, 0.1, 8, false);
+                const stemMat = new THREE.MeshStandardMaterial({ color: 0x4caf50 });
+                lilyGroup.add(new THREE.Mesh(stemGeo, stemMat));
+
+                // 2. Kelopak
+                const petalShape = new THREE.Shape();
+                petalShape.moveTo(0,0);
+                petalShape.bezierCurveTo(0.5, 1, 1, 2, 0, 3.5);
+                petalShape.bezierCurveTo(-1, 2, -0.5, 1, 0, 0);
+
+                const extrudeSet = { steps: 1, depth: 0.05, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2 };
+                const petalGeo = new THREE.ExtrudeGeometry(petalShape, extrudeSet);
+                const petalMat = new THREE.MeshStandardMaterial({ 
+                    color: 0xffffff, emissive: 0xffaacc, emissiveIntensity: 0.3,
+                    roughness: 0.2, metalness: 0.1, side: THREE.DoubleSide 
+                });
+
+                for(let i=0; i<6; i++) {
+                    const group = new THREE.Group();
+                    const petal = new THREE.Mesh(petalGeo, petalMat);
+                    
+                    petal.rotation.x = -0.3; // Lengkungan natural
+                    group.add(petal);
+
+                    // Posisi awal tertutup
+                    group.rotation.z = (i * 60) * (Math.PI/180);
+                    group.rotation.x = 1.5; // Kuncup
+
+                    // Data target animasi
+                    group.userData = { targetX: 0.7 };
+                    if(i%2!==0) {
+                        petal.position.y = 0.1;
+                        group.userData.targetX = 1.0; 
+                    }
+                    
+                    lilyGroup.add(group);
+                }
+                
+                // Putik
+                for(let i=0; i<5; i++) {
+                   const pGeo = new THREE.CylinderGeometry(0.02, 0.02, 1.2, 6);
+                   const pMat = new THREE.MeshBasicMaterial({color:0xffd700});
+                   const p = new THREE.Mesh(pGeo, pMat);
+                   p.position.y = 0.5;
+                   p.rotation.set(Math.random()-0.5, 0, Math.random()-0.5);
+                   lilyGroup.add(p);
+                }
+
+                lilyGroup.scale.set(0,0,0);
+                scene.add(lilyGroup);
+            }
+
+            function createParticles() {
+                const geo = new THREE.BufferGeometry();
+                const pos = [];
+                for(let i=0; i<150; i++) {
+                    pos.push((Math.random()-0.5)*10, (Math.random()-0.5)*10+2, (Math.random()-0.5)*10);
+                }
+                geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+                const mat = new THREE.PointsMaterial({color: 0xffb7b2, size: 0.15, transparent: true, opacity: 0.6});
+                particles = new THREE.Points(geo, mat);
+                scene.add(particles);
+            }
+
+            function loop3D() {
+                requestAnimationFrame(loop3D);
+                const t = Date.now() * 0.001;
+
+                // Animasi Mekar
+                if (bloomVal < 1) {
+                    bloomVal += 0.005;
+                    lilyGroup.scale.set(bloomVal, bloomVal, bloomVal);
+                }
+
+                // Animasi Kelopak Membuka
+                lilyGroup.children.forEach(c => {
+                    if (c.userData.targetX && bloomVal > 0.3) {
+                        c.rotation.x += (c.userData.targetX - c.rotation.x) * 0.02;
+                    }
+                });
+
+                // Gerakan Floating
+                lilyGroup.position.y = Math.sin(t) * 0.2 + 0.5;
+                lilyGroup.rotation.y = t * 0.15;
+
+                // Partikel
+                particles.rotation.y = -t * 0.05;
+                particles.position.y = Math.sin(t*0.5)*0.2;
+
+                renderer.render(scene, camera);
+            }
+
+        }); // END WINDOW LOAD
+    </script>
+</body>
+</html>
+
+
 
